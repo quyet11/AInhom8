@@ -30,6 +30,7 @@ const PostJob = () => {
         jobLocation: '',
         company: '',
     });
+
     const [expiryDate, setExpiryDate] = useState('');
     const [jobType, setJobType] = useState('full-time');
     const [postedDate] = useState(new Date().toISOString());
@@ -40,6 +41,7 @@ const PostJob = () => {
     };
 
     const handleSubmit = async () => {
+        const token = localStorage.getItem('token');
         if (!selectedFile) {
             alert('Please upload an image!');
             return;
@@ -59,7 +61,10 @@ const PostJob = () => {
         formData.append('company', jobDetails.company);
         try {
             const response = await axios.post('http://localhost:3001/job-postings', formData, {
-                headers: { 'Content-Type': 'multipart/form-data' },
+                headers: {
+                    'Authorization': `Bearer ${token}`, // Add the token
+                    'Content-Type': 'multipart/form-data', // Required for FormData
+                },
             });
             alert('Job posting successful!');
         } catch (error) {

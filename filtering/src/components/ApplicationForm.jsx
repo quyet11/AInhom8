@@ -3,6 +3,7 @@ import '../styles/ApplicationForm.css';
 import Helmet from "react-helmet";
 import {useNavigate, useLocation, useParams} from 'react-router-dom';
 const ApplicationForm = ({ isOpen, onClose }) => {
+    const navigate = useNavigate(); // Initialize useNavigate
     const { jobId } = useParams();
     const locationData = useLocation();
     const job = locationData.state?.job;
@@ -56,7 +57,9 @@ const ApplicationForm = ({ isOpen, onClose }) => {
     };
 
     if (!isOpen) return null; // Ẩn modal khi không được mở
-
+    const handleJobClick = () => {
+        navigate(`/Job-BoardMain`);
+    };
     return (
         <div className="modal-overlay">
             <Helmet>
@@ -256,7 +259,7 @@ const ApplicationForm = ({ isOpen, onClose }) => {
                     </div>
 
                     <div className="button-container">
-                        <button className="button" type="submit">Submit Application</button>
+                        <button className="button" type="submit" >Submit Application</button>
                         <button className="button cancel" type="button" onClick={onClose}>Cancel</button>
                     </div>
                 </form>

@@ -34,17 +34,29 @@ const FeedbackModal = ({ isOpen,onClose,applicantName,emailName,company,jobTitle
     const handleSubmit = async (event) => {
         event.preventDefault();
 
-        // Kiểm tra loại feedback và trạng thái CV
+        // Kiểm tra loại feedback
         let feedbackContent;
-        if (cvStatus === "fail") {
-            // Nếu CV Fail, sử dụng nội dung feedback cho trường hợp thất bại
-            feedbackContent = "We regret to inform you that your application did not meet the criteria. Thank you for your interest.";
-        } else if (cvStatus === "pass") {
-            // Nếu CV Pass, thêm thời gian và địa điểm phỏng vấn
-            feedbackContent = `Congratulations! Your CV in ${jobTitle } has been shortlisted. Please attend the interview scheduled on ${interviewTime} at ${interviewLocation}.`;
-        } else {
-            alert("Please select a CV status before submitting feedback.");
-            return;
+        if (feedbackType === "custom") {
+            if (!customFeedback.trim()) {
+                alert("Please enter custom feedback.");
+                return;
+            }
+            feedbackContent = customFeedback; // Lấy nội dung custom feedback
+        } else if (feedbackType === "auto") {
+            if (!cvStatus) {
+                alert("Please select a CV status before submitting feedback.");
+                return;
+            }
+
+            if (cvStatus === "fail") {
+                feedbackContent = "We regret to inform you that your application did not meet the criteria. Thank you for your interest.";
+            } else if (cvStatus === "pass") {
+                if (!interviewTime || !interviewLocation.trim()) {
+                    alert("Please provide interview time and location.");
+                    return;
+                }
+                feedbackContent = `Congratulations! Your CV in ${jobTitle} has been shortlisted. Please attend the interview scheduled on ${interviewTime} at ${interviewLocation}.`;
+            }
         }
 
         try {
@@ -58,7 +70,7 @@ const FeedbackModal = ({ isOpen,onClose,applicantName,emailName,company,jobTitle
                     toEmail: emailName,           // Email của ứng viên
                     applicantName: applicantName, // Tên ứng viên
                     feedbackContent: feedbackContent, // Nội dung feedback
-                    company:company,
+                    company: company,
                 }),
             });
 
@@ -73,7 +85,6 @@ const FeedbackModal = ({ isOpen,onClose,applicantName,emailName,company,jobTitle
             alert("Error sending email.");
         }
     };
-
 
     if (!isOpen) return null;
     return (
@@ -241,7 +252,7 @@ const FeedbackModal = ({ isOpen,onClose,applicantName,emailName,company,jobTitle
                     )}
 
                     <div className="button-container">
-                        <button type="submit" className="button">Submit Feedback</button>
+                        <button type="submit" className="button" >Submit Feedback</button>
                         <button type="button" className="button cancel" onClick={onClose}>Cancel</button>
                     </div>
                 </form>

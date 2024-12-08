@@ -44,7 +44,7 @@ const JobBoardMain = () => {
     useEffect(() => {
         const fetchJobPostings = async () => {
             try {
-                const response = await fetch('http://localhost:3001/job-postings');
+                const response = await fetch('http://localhost:3001/job_postings');
                 if (!response.ok) {
                     throw new Error('Lỗi khi lấy dữ liệu');
                 }

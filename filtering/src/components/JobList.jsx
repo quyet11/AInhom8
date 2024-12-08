@@ -16,12 +16,23 @@ import { useNavigate } from 'react-router-dom';
 import Footer from "./Footer";
 // import { Viewer, Worker } from '@react-pdf-viewer/core';
 // import '@react-pdf-viewer/core/lib/styles/index.css';
-const JobList = () => {
+import axios from "axios";
+import EvaluationResultsModal from './EvaluationResultsModal'; // Thay đổi đường dẫn đúng với cấu trúc dự án của bạn
 
+const JobList = () => {
+    const [isModalOpen, setIsModalOpen] = useState(false); // Quản lý trạng thái modal
+    const [error, setError] = useState(null);
+    const [evaluationResults, setEvaluationResults] = useState([]);
+    const [isEvaluating, setIsEvaluating] = useState(false);
     const [applicants, setApplicants] = useState([]);
     const [jobApplications, setJobApplications] = useState([]); // Renamed to match the context
     const navigate = useNavigate();
     const [applicant, setApplicant] = useState(null);
+    const [Name, setName] = useState('');
+
+    const [Email, setEmail] = useState('');
+    const [Tittle, setTittle] = useState('');
+    const [id, setId] = useState('');
     const [searchFilters, setSearchFilters] = useState({
         title: '',
         name: '',
@@ -30,27 +41,98 @@ const JobList = () => {
     const [filteredJobs, setFilteredJobs] = useState([]);
     useEffect(() => {
         const fetchJobApplications = async () => {
+            const userId = localStorage.getItem('userId');  // Lấy userId từ localStorage
+            console.log(userId); // Kiểm tra xem giá trị có đúng hay không
+
             try {
-                const response = await fetch('http://localhost:3001/api/applicants'); // Đảm bảo URL API chính xác
-                if (!response.ok) {
-                    throw new Error('HTTP error! status: ' + response.status);
-                }
-                const data = await response.json();
+                const response = await axios.get('http://localhost:3001/api/applicants', {
+                    headers: {
+                        Authorization: `Bearer ${localStorage.getItem('token')}`  // Gửi token vào header
+                    }
+                });
+
+                // Kiểm tra dữ liệu trả về
+                const data = response.data; // Axios tự động parse dữ liệu JSON
                 console.log(data); // Kiểm tra dữ liệu trả về
+                const names = data.map(item => item.name);
+                const emails = data.map(item => item.email);
+                const tittles = data.map(item => item.job_title);
+                const ids = data.map(item => item.id);
+                setName(names);
+                setEmail(emails);
+                setTittle(tittles);
+                setId(ids);
 
-                // Chỉ giữ lại các ứng viên có status là 'pending'
-                const filteredApplicants = data.filter(applicant => applicant.status === 'pending');
+
+                // Lọc các ứng viên có trạng thái 'pending' và so sánh recruiter_id với userId
+                const filteredApplicants = data.filter(applicant =>
+                    applicant.status === 'pending' && applicant.recruiter_id === parseInt(userId)  // So sánh recruiter_id với userId
+                );
+
+                // Cập nhật state với danh sách ứng viên đã lọc
                 setApplicants(filteredApplicants);
-                setJobApplications(filteredApplicants); // Cập nhật danh sách ứng viên với status 'pending'
-                setFilteredJobs(filteredApplicants); // Khởi tạo danh sách lọc ban đầu
-
+                setJobApplications(filteredApplicants);
+                setFilteredJobs(filteredApplicants);
             } catch (error) {
-                console.error('Error fetching job applications:', error);
+                console.error('Error fetching job applications:', error);  // Đảm bảo lỗi được ghi rõ
             }
         };
 
+
+
         fetchJobApplications();
     }, []);
+
+
+
+    const handleEvaluateAllClick = async () => {
+        setIsModalOpen(true);
+        if (jobApplications && jobApplications.length > 0) {
+            setIsEvaluating(true);
+
+            try {
+                // Đánh giá tất cả các CV của ứng viên
+                const evaluations = await Promise.all(
+                    jobApplications.map(async (application) => {
+                        const { job_description: jobDescription, required_skills: requiredSkills, cv } = application;
+
+                        const response = await fetch(`${cv}`);
+                        if (!response.ok) throw new Error('Failed to fetch CV file');
+                        const blob = await response.blob();
+                        const cvFile = new File([blob], 'CV_File.pdf');
+
+                        const formData = new FormData();
+                        formData.append('job_description', jobDescription);
+                        formData.append('required_skills', requiredSkills);
+                        formData.append('cv_file', cvFile);
+
+                        // Gửi dữ liệu để đánh giá CV
+                        const evaluateResponse = await fetch('http://localhost:3001/api/evaluate_cv', {
+                            method: 'POST',
+                            body: formData,
+                        });
+
+                        if (!evaluateResponse.ok) throw new Error('Error during evaluation');
+
+                        const result = await evaluateResponse.json();
+                        return result.evaluation_result; // Trả về kết quả đánh giá
+                    })
+                );
+
+                // Cập nhật kết quả đánh giá vào state
+                setEvaluationResults(evaluations);
+            } catch (error) {
+                console.error('Error during bulk CV evaluation:', error);
+                setError(error.message);
+            } finally {
+                setIsEvaluating(false);
+            }
+        } else {
+            console.error('No job applications found');
+        }
+    };
+
+
 
     const handleShortlistClick = (applicantId) => {
         navigate(`/applicant/${applicantId}`);
@@ -92,8 +174,31 @@ const JobList = () => {
             setCurrentPage(currentPage - 1);
         }
     };
+    const handleEvaluateResponse = (response) => {
+        const results = response.results.map(result => {
+            // Tìm số trước dấu '%'
+            const match = result.match(/(\d+)%/);
+
+            if (match) {
+                // Lấy hai chữ số đầu tiên nếu có
+                const percentage = match[1].slice(0, 2);
+                return `${percentage}%`;
+            } else {
+                return "Không xác định"; // Nếu không tìm thấy tỷ lệ phần trăm
+            }
+        });
+
+        console.log(results); // Hiển thị kết quả trong console hoặc cập nhật UI
+        return results;
+    };
+console.log(evaluationResults)
+    console.log(Tittle)
+    console.log(Name)
+    console.log(id)
     return (
+
         <div className="site-wrap">
+
             <div className="site-mobile-menu site-navbar-target">
                 <div className="site-mobile-menu-header">
                     <div className="site-mobile-menu-close mt-3">
@@ -228,7 +333,22 @@ const JobList = () => {
                     <div className="row mb-5 justify-content-center">
                         <div className="col-md-7 text-center">
                             {/* Dynamically display the number of job postings */}
-                            <h2 className="section-title mb-2">{jobApplications.length} Job Listed</h2>
+                            <h2 className="section-title mb-2">{jobApplications.name} Job Listed</h2>
+                            <button onClick={handleEvaluateAllClick} className="btn btn-primary">
+                                Đánh giá tất cả
+                            </button>
+                            <EvaluationResultsModal
+                                EvaluationResults={evaluationResults}
+                                name={Name}
+                                email={Email}
+                                jobTitle={Tittle}
+                                ID={id}
+                                isOpen={isModalOpen}
+                                onClose={() => setIsModalOpen(false)}
+                            />
+
+
+
                         </div>
                     </div>
 
@@ -240,7 +360,7 @@ const JobList = () => {
                                 >
 
 
-                                    <div className="job-listing-logo" >
+                                    <div className="job-listing-logo">
                                         <div className="job-listing-logo">
                                             <iframe
                                                 src={`${application.cv}#page=1`}
@@ -251,12 +371,14 @@ const JobList = () => {
                                             >
                                             </iframe>
                                         </div>
+
                                     </div>
                                     <div
                                         className="job-listing-about d-sm-flex custom-width w-100 justify-content-between mx-4">
                                         <div className="job-listing-position custom-width w-50 mb-3 mb-sm-0">
                                             <h2>{application.name}</h2>
                                             <strong>Job Title: {application.job_title}</strong>
+
                                         </div>
                                         <div className="job-listing-location mb-3 mb-sm-0 custom-width w-25">
                                             <span
@@ -336,6 +458,8 @@ const JobList = () => {
                 </div>
             </section>
             <Footer />
+
+
         </div>
     );
 };

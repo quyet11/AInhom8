@@ -49,8 +49,20 @@ const SignUpLogin = () => {
                 email,
                 password
             });
+            localStorage.setItem('token', response.data.accesstoken);
+            localStorage.setItem('userId', response.data.id);
             console.log('Đăng nhập thành công:', response.data);
-            navigate('/Job-BoardMain'); // Điều hướng đến trang Job-Board
+            if(response.data.userType == "user"){
+                navigate('/ApplicantHome'); // Điều hướng đến trang Job-Board
+            } else if(response.data.userType == "manager"){
+                navigate('/Job-BoardMain'); // Điều hướng đến trang Job-Board
+
+            } else {
+                navigate('/admin'); // Điều hướng đến trang Job-Board
+            }
+
+            // navigate('/RecruiterHome'); // Điều hướng đến trang Job-Board
+
         } catch (error) {
             console.error('Lỗi đăng nhập:', error);
             setError('Thông tin đăng nhập không chính xác.');
@@ -130,66 +142,66 @@ const SignUpLogin = () => {
                 <section className="site-section">
                     <div className="container">
 
-                            {/* Sign Up Form */}
+                        {/* Sign Up Form */}
 
 
-                            {/* Log In Form */}
-                            <div className="col-lg-6" >
-                                <Helmet>
-                                    <style>
-                                        {
-                                            `
+                        {/* Log In Form */}
+                        <div className="col-lg-6" >
+                            <Helmet>
+                                <style>
+                                    {
+                                        `
                 .col-lg-6 {
         
         margin-left: 282px;
         padding-bottom:50px;
     }
             `
-                                        }
-                                    </style>
-                                </Helmet>
+                                    }
+                                </style>
+                            </Helmet>
 
-                                <h2 className="mb-4">Log In To JobBoard</h2>
-                                <form onSubmit={handleLoginSubmit} className="p-4 border rounded">
-                                    <div className="row form-group">
-                                        <div className="col-md-12 mb-3 mb-md-0">
-                                            <label className="text-black" htmlFor="email">Email</label>
-                                            <input required
-                                                type="email"
-                                                id="email"
-                                                className="form-control"
-                                                placeholder="Email address"
-                                                value={email}
-                                                onChange={(e) => setEmail(e.target.value)}
-                                            />
-                                        </div>
+                            <h2 className="mb-4">Log In To JobBoard</h2>
+                            <form onSubmit={handleLoginSubmit} className="p-4 border rounded">
+                                <div className="row form-group">
+                                    <div className="col-md-12 mb-3 mb-md-0">
+                                        <label className="text-black" htmlFor="email">Email</label>
+                                        <input required
+                                               type="email"
+                                               id="email"
+                                               className="form-control"
+                                               placeholder="Email address"
+                                               value={email}
+                                               onChange={(e) => setEmail(e.target.value)}
+                                        />
                                     </div>
-                                    <div className="row form-group mb-4">
-                                        <div className="col-md-12 mb-3 mb-md-0">
-                                            <label className="text-black" htmlFor="password">Password</label>
-                                            <input required
-                                                type="password"
-                                                id="password"
-                                                className="form-control"
-                                                placeholder="Password"
-                                                value={password}
-                                                onChange={(e) => setPassword(e.target.value)}
-                                            />
-                                        </div>
+                                </div>
+                                <div className="row form-group mb-4">
+                                    <div className="col-md-12 mb-3 mb-md-0">
+                                        <label className="text-black" htmlFor="password">Password</label>
+                                        <input required
+                                               type="password"
+                                               id="password"
+                                               className="form-control"
+                                               placeholder="Password"
+                                               value={password}
+                                               onChange={(e) => setPassword(e.target.value)}
+                                        />
                                     </div>
-                                    <div className="row form-group">
-                                        <div className="col-md-12">
-                                            <input
-                                                type="submit"
-                                                value="Log In"
-                                                className="btn px-4 btn-primary text-white"
-                                            />
-                                        </div>
+                                </div>
+                                <div className="row form-group">
+                                    <div className="col-md-12">
+                                        <input
+                                            type="submit"
+                                            value="Log In"
+                                            className="btn px-4 btn-primary text-white"
+                                        />
                                     </div>
+                                </div>
 
-                                     <Link  to="/sign-up1">Don't have account?</Link>
-                                </form>
-                            </div>
+                                <Link  to="/sign-up1">Don't have account?</Link>
+                            </form>
+                        </div>
 
                     </div>
                 </section>

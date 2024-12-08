@@ -8,9 +8,9 @@ const multer = require('multer');
 const path = require('path');
 const pdfParse = require('pdf-parse');
 const mysql = require('mysql2');
-
+const jwt = require('jsonwebtoken')
 const { GoogleGenerativeAI } = require("@google/generative-ai");
-
+const config = require('./config')
 
 // Tạo ứng dụng Express
 const app = express();
@@ -42,6 +42,109 @@ const transporter = nodemailer.createTransport({
         pass: process.env.GMAIL_PASS
     }
 });
+app.get('/users', (req, res) => {
+    const sql = 'SELECT * FROM users';
+
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error('Lỗi khi lấy danh sách users:', err);
+            return res.status(500).json({ message: 'Lấy danh sách thất bại' });
+        }
+        // Trả về danh sách người dùng
+        return res.status(200).json(results);
+    });
+});
+app.delete('/users/:id', (req, res) => {
+    const { id } = req.params;
+    const sql = 'DELETE FROM users WHERE id = ?';
+
+    db.query(sql, [id], (err, results) => {
+        if (err) {
+            console.error('Lỗi khi xóa user:', err);
+            return res.status(500).json({ message: 'Xóa người dùng thất bại' });
+        }
+        return res.status(200).json({ message: 'Xóa người dùng thành công' });
+    });
+});
+app.put('/users/:id', (req, res) => {
+    const { id } = req.params;
+    const { email, password, usertype } = req.body;
+
+    const sql = 'UPDATE users SET email = ?, password = ?, usertype = ? WHERE id = ?';
+
+    db.query(sql, [email, password, usertype, id], (err, results) => {
+        if (err) {
+            console.error('Lỗi khi cập nhật user:', err);
+            return res.status(500).json({ message: 'Cập nhật người dùng thất bại' });
+        }
+        return res.status(200).json({ message: 'Cập nhật người dùng thành công' });
+    });
+});
+app.get('/messages', (req, res) => {
+    const sql = 'SELECT * FROM messages';
+
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error('Lỗi khi lấy danh sách messages:', err);
+            return res.status(500).json({ message: 'Lấy danh sách thất bại' });
+        }
+        // Trả về danh sách người dùng
+        return res.status(200).json(results);
+    });
+});
+app.delete('/messages/:id', (req, res) => {
+    const { id } = req.params;
+    const sql = 'DELETE FROM messages WHERE id = ?';
+
+    db.query(sql, [id], (err, results) => {
+        if (err) {
+            console.error('Lỗi khi xóa user:', err);
+            return res.status(500).json({ message: 'Xóa bình luận thất bại' });
+        }
+        return res.status(200).json({ message: 'Xóa bình luận thành công' });
+    });
+});
+app.put('/messages/:id', (req, res) => {
+    const { id } = req.params;
+    const { firstname, lastname, email, subject, message } = req.body;
+
+    const sql = 'UPDATE messages SET first_name = ?, last_name = ?, email = ?, subject = ?, message = ? WHERE id = ?';
+
+    db.query(sql, [firstname, lastname, email, subject, message, id], (err, results) => {
+        if (err) {
+            console.error('Lỗi khi cập nhật user:', err);
+            return res.status(500).json({ message: 'Cập nhật bình luận thất bại' });
+        }
+        return res.status(200).json({ message: 'Cập nhật bình luận thành công' });
+    });
+});
+app.post('/update-application-status', (req, res) => {
+    const { id, status } = req.body;
+
+    console.log('Received ID:', id); // Log ID
+    console.log('Received Status:', status); // Log Status
+
+    if (!id || !status) {
+        console.error('Missing ID or Status');
+        return res.status(400).json({ message: 'ID hoặc Status bị thiếu' });
+    }
+
+    const sql = 'UPDATE applications SET status = ? WHERE id = ?';
+    db.query(sql, [status, id], (error, results) => {
+        if (error) {
+            console.error('Database error:', error); // Log lỗi DB
+            return res.status(500).json({ message: 'Lỗi cơ sở dữ liệu' });
+        }
+
+        if (results.affectedRows === 0) {
+            console.warn('Không tìm thấy ứng viên với ID:', id); // Log nếu không tìm thấy ứng viên
+            return res.status(404).json({ message: 'Không tìm thấy ứng viên' });
+        }
+
+        console.log('Cập nhật thành công ID:', id, 'với trạng thái:', status);
+        res.status(200).json({ message: 'Cập nhật trạng thái thành công' });
+    });
+});
 
 app.post("/send-email", async (req, res) => {
     const { toEmail, applicantName, feedbackContent,company } = req.body;
@@ -71,11 +174,12 @@ app.post("/send-email", async (req, res) => {
 });
 // API đăng ký
 app.post('/signup', (req, res) => {
-    const { email, password } = req.body;
-    const query = 'INSERT INTO users (email, password) VALUES (?, ?)';
+    const { email, password, usertype } = req.body; // Nhận thêm usertype
+    const query = 'INSERT INTO users (email, password, usertype) VALUES (?, ?, ?)';
 
-    db.query(query, [email, password], (err, result) => {
+    db.query(query, [email, password, usertype], (err, result) => {
         if (err) {
+            console.error('Lỗi đăng ký:', err);
             res.status(500).send('Lỗi đăng ký');
             return;
         }
@@ -84,23 +188,127 @@ app.post('/signup', (req, res) => {
 });
 
 // API đăng nhập
+// app.post('/login', (req, res) => {
+//     const { email, password } = req.body;
+//     const query = 'SELECT * FROM users WHERE email = ? AND password = ?';
+//
+//     db.query(query, [email, password], (err, result) => {
+//         if (err) {
+//             res.status(500).send('Lỗi đăng nhập');
+//             return;
+//         }
+//         if (result.length > 0) {
+//             res.status(200).send('Đăng nhập thành công');
+//         } else {
+//             res.status(401).send('Thông tin đăng nhập không chính xác');
+//             // alert('Email hoặc mật khẩu không chính xác!')
+//         }
+//     });
+// });
 app.post('/login', (req, res) => {
     const { email, password } = req.body;
     const query = 'SELECT * FROM users WHERE email = ? AND password = ?';
-
     db.query(query, [email, password], (err, result) => {
         if (err) {
             res.status(500).send('Lỗi đăng nhập');
             return;
         }
         if (result.length > 0) {
-            res.status(200).send('Đăng nhập thành công');
+            const accessToken = jwt.sign(
+                {userId: result[0].id},config.accessTokenSecret, {subject: 'accessApi',expiresIn: '1d'})
+            res.status(200).json({
+                id: result[0].id,
+                name: result[0].fullname,
+                email: result[0].email,
+                accesstoken: accessToken,
+                userType:result[0].usertype
+            })
         } else {
             res.status(401).send('Thông tin đăng nhập không chính xác');
             // alert('Email hoặc mật khẩu không chính xác!')
         }
     });
 });
+//cập nhật thêm
+app.get('/user', ensureAuthenticated,authorize(['admin','user']), (req,res) => {
+
+    return res.status(200).json({message:"only admin and user can access this route"})
+})
+app.get('/admin', ensureAuthenticated,authorize(['admin']), (req,res) => {
+
+    return res.status(200).json({message:"only admin can access this route"})
+})
+app.get('/manager', ensureAuthenticated,authorize(['manager','admin']), (req,res) => {
+
+    return res.status(200).json({message:"only manager and admin can access this route"})
+})
+function authorize(roles =[]){
+    return async function (req,res, next) {
+        const query = 'SELECT * FROM users WHERE id = ?';
+        db.query(query, req.user.id, (err, result) => {
+            const user = {
+                id: result[0].id,
+                name: result[0].fullname,
+                email: result[0].email,
+                password: result[0].password,
+                userType: result[0].usertype
+            }
+            if(!user || !roles.includes(user.userType)) {
+                return res.status(403).json({
+                    message: 'Access denied'
+                })
+            }
+            next()
+        });
+    }
+
+}
+
+
+app.get('/current',ensureAuthenticated, async(req,res) => {
+    const query = 'SELECT * FROM users WHERE id = ?';
+    db.query(query, req.user.id, (err, result) => {
+        try {
+            const user = {
+                id: result[0].id,
+                fullname: result[0].fullName,
+                email:result[0].email,
+                userType: result[0].usertype
+            }
+            return res.status(200).json({
+                id:user.id,
+                name:user.fullname,
+                email:user.email,
+                userType:user.userType
+            })
+        } catch {
+            return res.status(500).json({
+                message:err.message
+            })
+        }
+    });
+});
+async function ensureAuthenticated(req, res, next) {
+    const accessToken = req.headers.authorization
+
+    if(!accessToken) {
+        return res.status(401).json({
+            message:"Access Token not found"
+        })
+    }
+    try {
+        const decodeAccessToken = jwt.verify(accessToken, config.accessTokenSecret)
+        req.user = {id: decodeAccessToken.userId}
+        next()
+    } catch (err) {
+        return res.status(401).json({
+            message:"Access Token invald or expired"
+        })
+    }
+
+}
+
+//end
 
 
 
@@ -109,56 +317,49 @@ app.post('/login', (req, res) => {
 
 
 
-app.get('/job-postings', (req, res) => {
-    const sql = 'SELECT * FROM job_postings ';
+// API để lấy danh sách công việc
+app.get('/job_postings', (req, res) => {
+    const sql = 'SELECT * FROM job_postings';
 
     db.query(sql, (err, results) => {
         if (err) {
-            console.error('Lỗi khi lấy danh sách job postings:', err);
-            return res.status(500).json({ message: 'Lấy danh sách thất bại' });
+            console.error('Lỗi khi lấy danh sách công việc:', err);
+            return res.status(500).json({ message: 'Lấy danh sách công việc thất bại' });
         }
-
-        // Trả về danh sách job postings
+        // Trả về danh sách công việc
         return res.status(200).json(results);
     });
 });
 
 
 // DELETE route to delete a job posting by ID
-app.delete('/job-postings/:id', (req, res) => {
-    const jobId = req.params.id;
+// API để xóa công việc theo ID
+app.delete('/job_postings/:id', (req, res) => {
+    const { id } = req.params;
     const sql = 'DELETE FROM job_postings WHERE id = ?';
 
-    db.query(sql, [jobId], (err, results) => {
+    db.query(sql, [id], (err, results) => {
         if (err) {
-            console.error('Lỗi khi xóa job posting:', err);
-            return res.status(500).json({ message: 'Xóa thất bại' });
+            console.error('Lỗi khi xóa công việc:', err);
+            return res.status(500).json({ message: 'Xóa công việc thất bại' });
         }
-
-        if (results.affectedRows === 0) {
-            return res.status(404).json({ message: 'Không tìm thấy job posting' });
-        }
-
-        return res.status(200).json({ message: 'Xóa thành công' });
+        return res.status(200).json({ message: 'Xóa công việc thành công' });
     });
 });
 // PUT route to update a job posting by ID
-app.put('/job-postings/:id', (req, res) => {
-    const jobId = req.params.id;
-    const { job_title, expiry_date,required_skills,job_description} = req.body;
-    const sql = 'UPDATE job_postings SET job_title = ?,job_description=?,required_skills =?, expiry_date = ? WHERE id = ?';
+// API để cập nhật thông tin công việc theo ID
+app.put('/job_postings/:id', (req, res) => {
+    const { id } = req.params;
+    const { job_title, job_description, required_skills, experience, salary_range, expiry_date, job_type, posted_date, recruiter_id, location, company } = req.body;
 
-    db.query(sql, [job_title,job_description,required_skills, expiry_date, jobId], (err, results) => {
+    const sql = 'UPDATE job_postings SET job_title = ?, job_description = ?, required_skills = ?, experience = ?, salary_range = ?, expiry_date = ?, job_type = ?, posted_date = ?, recruiter_id = ?, location = ?, company = ? WHERE id = ?';
+
+    db.query(sql, [job_title, job_description, required_skills, experience, salary_range, expiry_date, job_type, posted_date, recruiter_id, location,  company, id], (err, results) => {
         if (err) {
-            console.error('Lỗi khi cập nhật job posting:', err);
-            return res.status(500).json({ message: 'Cập nhật thất bại' });
+            console.error('Lỗi khi cập nhật công việc:', err);
+            return res.status(500).json({ message: 'Cập nhật công việc thất bại' });
         }
-
-        if (results.affectedRows === 0) {
-            return res.status(404).json({ message: 'Không tìm thấy job posting' });
-        }
-
-        return res.status(200).json({ message: 'Cập nhật thành công' });
+        return res.status(200).json({ message: 'Cập nhật công việc thành công' });
     });
 });
 
@@ -207,23 +408,41 @@ const uploaddd = multer({ storage: storage }); // Chỉ nên định nghĩa mộ
 // API để thêm job posting
 // API để thêm job posting
 app.post('/job-postings', uploaddd.single('file'), (req, res) => {
-    const { jobTitle, jobDescription, requiredSkills, experience, salaryRange, expiryDate, jobType, postedDate, jobLocation,company } = req.body;
-    const imageUrl = req.file ? `/uploads/${req.file.filename}` : null; // Save the image path
-
-    if (!jobTitle || !jobDescription || !requiredSkills || !experience || !salaryRange || !expiryDate || !jobType || !postedDate || !jobLocation || !company) {
-        return res.status(400).json({ message: 'Missing required fields' });
+    const token = req.headers.authorization?.split(' ')[1]; // Extract JWT from Authorization header
+    if (!token) {
+        return res.status(401).json({ message: 'Authentication required' });
     }
 
-    const sql = `INSERT INTO job_postings (job_title, job_description, required_skills, experience, salary_range, expiry_date, job_type, posted_date, location, image_url,company)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`;
+    try {
+        const decoded = jwt.verify(token, config.accessTokenSecret); // Verify and decode token
+        const recruiterId = decoded.userId; // Extract `userId` from the token
 
-    db.query(sql, [jobTitle, jobDescription, requiredSkills, experience, salaryRange, expiryDate, jobType, postedDate, jobLocation, imageUrl,company], (err, result) => {
-        if (err) {
-            console.error('Error saving job posting:', err);
-            return res.status(500).json({ message: 'Failed to save job posting' });
+        const { jobTitle, jobDescription, requiredSkills, experience, salaryRange, expiryDate, jobType, postedDate, jobLocation, company } = req.body;
+        const imageUrl = req.file ? `/uploads/${req.file.filename}` : null; // Save the image path
+
+        // Check for missing fields
+        if (!jobTitle || !jobDescription || !requiredSkills || !experience || !salaryRange || !expiryDate || !jobType || !postedDate || !jobLocation || !company) {
+            return res.status(400).json({ message: 'Missing required fields' });
         }
-        return res.status(201).json({ message: 'Job posting saved successfully' });
-    });
+
+        const sql = `
+            INSERT INTO job_postings 
+            (job_title, job_description, required_skills, experience, salary_range, expiry_date, job_type, posted_date, location, image_url, company, recruiter_id) 
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+        `;
+
+        // Add recruiterId to the query parameters
+        db.query(sql, [jobTitle, jobDescription, requiredSkills, experience, salaryRange, expiryDate, jobType, postedDate, jobLocation, imageUrl, company, recruiterId], (err, result) => {
+            if (err) {
+                console.error('Error saving job posting:', err);
+                return res.status(500).json({ message: 'Failed to save job posting' });
+            }
+            return res.status(201).json({ message: 'Job posting saved successfully' });
+        });
+    } catch (error) {
+        console.error('JWT error:', error);
+        return res.status(403).json({ message: 'Invalid or expired token' });
+    }
 });
 // Route để nhận thông tin ứng tuyển
 app.post('/api/apply', upload.single('cv'), (req, res) => {
@@ -328,29 +547,57 @@ app.get('/api/applications/:jobId', (req, res) => {
 //         }
 //     });
 // });
+async function ensureAuthenticatedd(req, res, next) {
+    const token = req.headers.authorization?.split(' ')[1]; // Lấy token từ header
+    if (!token) {
+        return res.status(401).json({ message: 'Access Token not found' });
+    }
 
+    try {
+        const decoded = jwt.verify(token, config.accessTokenSecret);
+        console.log('Payload sau khi decode:', decoded); // Kiểm tra payload
+        req.user = { id: decoded.userId }; // Đặt userId vào req.user
+        next();
+    } catch (err) {
+        console.error('Lỗi xác thực token:', err);
+        return res.status(401).json({ message: 'Access Token invalid or expired' });
+    }
+}
 
-app.get('/api/applicants', (req, res) => {
+app.get('/api/applicants', ensureAuthenticatedd, (req, res) => {
+    const userId = req.user.id; // Lấy userId từ middleware ensureAuthenticated
+
     const sql = `
-        SELECT applications.id, applications.name,applications.cv, job_postings.experience, applications.status, job_postings.job_title
+        SELECT applications.id, applications.name, applications.cv, applications.email,
+               applications.status, applications.application_date,
+               job_postings.job_title, job_postings.experience, 
+               job_postings.job_description, job_postings.required_skills,
+               job_postings.recruiter_id
         FROM applications
         JOIN job_postings ON applications.job_id = job_postings.id
-    `;
-    db.query(sql, (err, results) => {
+        WHERE job_postings.recruiter_id = ?`; // So sánh recruiter_id với userId
+
+    console.log(userId);
+
+    db.query(sql, [userId], (err, results) => {
         if (err) {
             console.error('Lỗi khi lấy danh sách ứng viên:', err);
-            res.status(500).json({ message: 'Lỗi khi lấy danh sách ứng viên' });
-        } else {
-            // Cập nhật đường dẫn CV thành URL đầy đủ
-            const baseUrl = 'http://localhost:3001'; // Thay thế bằng URL server của bạn
-            const updatedResults = results.map(result => ({
-                ...result,
-                cv: `${baseUrl}/${result.cv.replace(/\\/g, '/')}` // Đổi "\\" thành "/"
-            }));
-            res.json(updatedResults);
+            return res.status(500).json({ message: 'Lỗi khi lấy danh sách ứng viên' });
         }
+
+        // Cập nhật đường dẫn CV thành URL đầy đủ
+        const baseUrl = 'http://localhost:3001'; // Thay thế bằng URL server của bạn
+        const updatedResults = results.map(result => ({
+            ...result,
+            cv: `${baseUrl}/${result.cv.replace(/\\/g, '/')}` // Đổi "\\" thành "/"
+        }));
+
+        res.json(updatedResults); // Trả về kết quả
     });
 });
+
+
+
 
 // In your Express server file
 app.use(express.json());
@@ -492,6 +739,24 @@ app.post('/api/applicants/:id/reject', (req, res) => {
         res.status(200).json({ message: 'Ứng viên đã bị từ chối' });
     });
 });
+app.post('/api/applicants/:id/accept', (req, res) => {
+    const applicantId = req.params.id;
+
+    const sql = 'UPDATE applications SET status = ? WHERE id = ?';
+    db.query(sql, ['accepted', applicantId], (error, results) => {
+        if (error) {
+            console.error('Database error:', error);
+            return res.status(500).json({ message: 'Lỗi khi từ chối ứng viên' });
+        }
+
+        if (results.affectedRows === 0) {
+            return res.status(404).json({ message: 'Ứng viên không tồn tại' });
+        }
+
+        res.status(200).json({ message: 'Ứng viên đã bị từ chối' });
+    });
+});
+
 
 app.post('/api/evaluate_all_cvs', async (req, res) => {
     console.log("API evaluate_all_cvs được gọi");
@@ -613,6 +878,264 @@ app.get('/messages', (req, res) => {
         }
     });
 });
+
+app.post('/api/job_market_questions', async (req, res) => {
+    const { chatHistory } = req.body;
+
+    if (!chatHistory || !Array.isArray(chatHistory)) {
+        return res.status(400).json({ error: "Lịch sử hội thoại không hợp lệ." });
+    }
+
+    // Chuyển lịch sử hội thoại thành chuỗi để gửi đến mô hình AI
+    const chatContext = chatHistory
+        .map((chat) => `${chat.role === "user" ? "Người dùng" : "Chatbot"}: ${chat.content}`)
+        .join("\n");
+
+    const prompt = `
+        Tiếp tục cuộc trò chuyện sau đây. Chỉ trả lời những câu hỏi liên quan đến việc làm. Nếu không có câu hỏi rõ ràng, hãy phản hồi một cách lịch sự:
+        
+        ${chatContext}
+        
+       
+    `;
+
+    try {
+        const response = await gemiAI.getGenerativeModel({ model: "gemini-1.5-flash" }).generateContent([prompt]);
+
+        const answer = response.response?.candidates?.[0]?.content?.parts?.[0]?.text || "Tôi không chắc chắn.";
+        return res.json({ answer });
+    } catch (error) {
+        console.error("Lỗi từ mô hình AI:", error);
+        return res.status(500).json({ error: "Lỗi khi xử lý câu trả lời." });
+    }
+});
+
+app.post('/api/evaluate_cv1', uploadd.single('cv_file'), async (req, res) => {
+    console.log('Dữ liệu nhận được:', req.body); // Log dữ liệu từ frontend
+    console.log('File tải lên:', req.file); // Log file được tải lên
+
+    try {
+
+        const cvFile = req.file;
+
+        if (!cvFile || !cvFile.buffer) {
+            console.error("Không nhận được buffer của file tải lên.");
+            return res.status(400).json({ error: 'File không hợp lệ hoặc bị thiếu.' });
+
+        }
+
+        // Kiểm tra xem cvFile.buffer có tồn tại và có phải là Buffer không
+
+
+        let pdfData;
+        try {
+            pdfData = await pdfParse(cvFile.buffer); // Phân tích từ buffer
+            cvContent = pdfData.text;
+            console.log("Nội dung CV đã phân tích:", cvContent); // Log nội dung CV đã phân tích
+        } catch (error) {
+            console.error("Lỗi Phân Tích PDF:", error.message);
+            return res.status(400).json({ error: `Không thể xử lý tệp CV: ${error.message}` });
+        }
+
+        // Khởi tạo mô hình AI
+        const model = gemiAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+        const prompt = `
+       Tóm tắt nội ngắn gọi nội dung CV dưới đây:
+        
+        
+        
+        CV: ${cvContent}
+        
+       
+        
+      
+        `;
+
+        try {
+            const response = await model.generateContent([prompt]);
+            console.log("Phản hồi từ AI:", JSON.stringify(response, null, 2)); // Log phản hồi chi tiết
+
+            // Trích xuất kết quả từ phản hồi
+            const evaluationResult = response && response.response && response.response.candidates && response.response.candidates.length > 0
+                ? response.response.candidates[0].content.parts[0].text // Lấy nội dung đánh giá
+                : "Không tìm thấy kết quả đánh giá.";
+
+            return res.json({ evaluation_result: evaluationResult });
+        } catch (error) {
+            console.log("Lỗi từ Gemini API: ", error.message);
+            return res.status(500).json({ error: `Lỗi khi gọi Gemini API: ${error.message}` });
+        }
+
+    } catch (error) {
+        console.log("Lỗi không mong muốn: ", error.message);
+        return res.status(500).json({ error: 'Có lỗi không mong muốn xảy ra.' });
+    }
+});
+
+app.get('/applications', (req, res) => {
+    const sql = 'SELECT * FROM applications';
+
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error('Lỗi khi lấy danh sách applications:', err);
+            return res.status(500).json({ message: 'Lấy danh sách thất bại' });
+        }
+
+        // Trả về danh sách applications
+        return res.status(200).json(results);
+    });
+});
+// Xóa ứng viên
+app.delete('/applications/:id', (req, res) => {
+    const { id } = req.params;
+    const sql = 'DELETE FROM applications WHERE id = ?';
+
+    db.query(sql, [id], (err, results) => {
+        if (err) {
+            console.error('Lỗi khi xóa application:', err);
+            return res.status(500).json({ message: 'Xóa ứng viên thất bại' });
+        }
+        return res.status(200).json({ message: 'Xóa ứng viên thành công' });
+    });
+});
+
+// Cập nhật thông tin ứng viên
+app.put('/applications/:id', (req, res) => {
+    const { id } = req.params;
+    const { status } = req.body;
+
+    const sql = 'UPDATE applications SET status = ? WHERE id = ?';
+
+    db.query(sql, [status, id], (err, results) => {
+        if (err) {
+            console.error('Lỗi khi cập nhật status ứng viên:', err);
+            return res.status(500).json({ message: 'Cập nhật status thất bại' });
+        }
+        return res.status(200).json({ message: 'Cập nhật status thành công' });
+    });
+});
+// API để lấy số lượng user, applications, messages, job postings
+app.get('/api/users/count', (req, res) => {
+    const query = 'SELECT * FROM users';
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching users:', err);
+            return res.status(500).json({ error: 'Failed to fetch users' });
+        }
+        res.json({ count: results.length }); // Đếm số dòng trong kết quả
+    });
+});
+
+app.get('/api/count', (req, res) => {
+    const query = 'SELECT COUNT(*) AS count FROM applications'; // Đếm số lượng dòng
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching applications count:', err);
+            return res.status(500).json({ error: 'Failed to fetch applications count' });
+        }
+        console.log('Result:', results); // Log ra kết quả để kiểm tra
+        res.json({ count: results[0].count }); // Trả về count
+    });
+});
+
+app.get('/api/messages/count', (req, res) => {
+    const query = 'SELECT * FROM messages';
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching messages:', err);
+            return res.status(500).json({ error: 'Failed to fetch messages' });
+        }
+        res.json({ count: results.length }); // Đếm số dòng trong kết quả
+    });
+});
+
+app.get('/api/job_postings/count', (req, res) => {
+    const query = 'SELECT * FROM job_postings';
+    db.query(query, (err, results) => {
+        if (err) {
+            console.error('Error fetching job postings:', err);
+            return res.status(500).json({ error: 'Failed to fetch job postings' });
+        }
+        res.json({ count: results.length }); // Đếm số dòng trong kết quả
+    });
+});
+app.post('/api/evaluate_cv_all', uploadd.array('cv_files', 10), async (req, res) => {
+    console.log('Dữ liệu nhận được:', req.body); // Log dữ liệu từ frontend
+    console.log('Files tải lên:', req.files); // Log các file được tải lên
+
+    try {
+        const { job_description, required_skills } = req.body;
+        const cvFiles = req.files;
+
+        if (!cvFiles || cvFiles.length === 0) {
+            console.error("Không nhận được file tải lên.");
+            return res.status(400).json({ error: 'Không có file nào được tải lên.' });
+        }
+
+        const results = []; // Lưu trữ kết quả đánh giá của tỷ lệ phần trăm phù hợp
+
+        for (const cvFile of cvFiles) {
+            // Kiểm tra tính hợp lệ của file
+            if (!cvFile.buffer) {
+                console.error(`File ${cvFile.originalname} không hợp lệ hoặc bị thiếu.`);
+                results.push("File không hợp lệ hoặc bị thiếu.");
+                continue;
+            }
+
+            let pdfData;
+            let cvContent;
+
+            try {
+                // Phân tích nội dung từ file PDF
+                pdfData = await pdfParse(cvFile.buffer);
+                cvContent = pdfData.text;
+            } catch (error) {
+                console.error(`Lỗi Phân Tích PDF (${cvFile.originalname}):`, error.message);
+                results.push("Không thể xử lý tệp CV.");
+                continue;
+            }
+
+            // Khởi tạo mô hình AI
+            const model = gemiAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+
+            const prompt = `
+            Dựa trên mô tả công việc và các kỹ năng yêu cầu, đánh giá mức độ phù hợp của ứng viên với công việc. Chỉ hiển thị tỷ lệ phần trăm phù hợp, ví dụ: "80% phù hợp". Không cần thêm bất kỳ phân tích hay giải thích nào.
+            Mô tả công việc: ${job_description}
+            Kỹ năng yêu cầu: ${required_skills}
+            Nội dung CV: ${cvContent}
+            `;
+
+            try {
+                // Gọi mô hình AI để đánh giá CV
+                const response = await model.generateContent([prompt]);
+
+                const evaluationResult = response &&
+                response.response &&
+                response.response.candidates &&
+                response.response.candidates.length > 0
+                    ? response.response.candidates[0].content.parts[0].text // Lấy nội dung đánh giá
+                    : "Không tìm thấy kết quả đánh giá.";
+
+                // Lọc tỷ lệ phần trăm phù hợp
+                const matchPercentage = evaluationResult.match(/(\d+)%/); // Tìm tỷ lệ phần trăm
+                const percentage = matchPercentage ? matchPercentage[0] : "Không xác định";
+
+                results.push(percentage);
+            } catch (error) {
+                console.log(`Lỗi từ Gemini API (${cvFile.originalname}):`, error.message);
+                results.push("Lỗi khi gọi Gemini API.");
+            }
+        }
+
+        // Trả về kết quả chỉ gồm tỷ lệ phần trăm phù hợp
+        return res.json({ results });
+    } catch (error) {
+        console.log("Lỗi không mong muốn: ", error.message);
+        return res.status(500).json({ error: 'Có lỗi không mong muốn xảy ra.' });
+    }
+});
+
 // Chạy server trên cổng 3001
 app.listen(3001, () => {
     console.log('Server is running on port 3001');

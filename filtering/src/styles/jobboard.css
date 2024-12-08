@@ -51,6 +51,10 @@
     background-color: #dc3545;
     color: white;
 }
+.button.accept {
+    background-color: #FFB84D;
+    color: white;
+}
 
 .button.reject:hover {
     background-color: #c82333;

@@ -25,6 +25,7 @@ const ApplicantDetails = () => {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState(null);
     const [isRejected, setIsRejected] = useState(false); // Trạng thái từ chối
+    const [isAccepted, setIsAccepted] = useState(false); // Trạng thái từ chối
     const navigate = useNavigate();
     const [applicantName, setApplicantName] = useState('');
     const [emailName, setemailName] = useState('');
@@ -98,11 +99,26 @@ const ApplicantDetails = () => {
             if (!response.ok) {
                 throw new Error('Failed to reject applicant');
             }
-            navigate('/ai-cv-filtering');
+            navigate('/list-job');
             setIsRejected(true); // Cập nhật trạng thái từ chối
             alert('Ứng viên đã bị từ chối.');
         } catch (error) {
             console.error('Error rejecting applicant:', error);
+        }
+    };
+    const handleAcceptClick = async () => {
+        try {
+            const response = await fetch(`http://localhost:3001/api/applicants/${id}/accept`, {
+                method: 'POST',
+            });
+            if (!response.ok) {
+                throw new Error('Failed to accept applicant');
+            }
+            navigate('/list-job');
+            setIsAccepted(true); // Cập nhật trạng thái từ chối
+            alert('ứng viên đã được accept.');
+        } catch (error) {
+            console.error('Error accept applicant:', error);
         }
     };
 
@@ -227,7 +243,28 @@ const ApplicantDetails = () => {
                                             color:black;
                                             }
 
-                                      
+                                      .applicant-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.applicant-header h2 {
+  margin-right: 10px;  /* Đảm bảo khoảng cách giữa tên ứng viên và nút */
+}
+
+.view-cv {
+  background-color: #4CAF50; /* Hoặc bất kỳ màu nào bạn muốn */
+  color: white;
+  padding: 10px 20px;
+  text-decoration: none;
+  border-radius: 5px;
+}
+
+.view-cv:hover {
+  background-color: #45a049;
+}
                                         `
                                             }
 
@@ -242,7 +279,13 @@ const ApplicantDetails = () => {
                                     ) : (
                                         applicant ? (
                                             <>
-                                                <h2>Applicant Name: {applicant.name}</h2>
+                                                <div  className="applicant-header">
+                                                    <h2 >Applicant Name: {applicant.name}</h2>
+                                                    <a  href={`http://localhost:3001/${applicant.cv}`} target="_blank"
+                                                       rel="noopener noreferrer" className="button view-cv">
+                                                        View Full CV
+                                                    </a>
+                                                </div>
                                                 <p><strong>Email:</strong> {applicant.email}</p>
                                                 <p><strong>Cover Letter:</strong> {applicant.cover_letter}</p>
 
@@ -260,9 +303,7 @@ const ApplicantDetails = () => {
                                                 )}
 
                                                 <div className="button-container">
-                                                    <a href={`http://localhost:3001/${applicant.cv}`} target="_blank"
-                                                       rel="noopener noreferrer"
-                                                       className="button">View Full CV</a>
+
                                                     <button className="button shortlist" type="button"
                                                             onClick={handleEvaluateClick}
                                                             disabled={isEvaluating}>
@@ -275,9 +316,19 @@ const ApplicantDetails = () => {
                                                         {isRejected ? 'Rejected' : 'Reject'}
 
                                                     </button>
-                                                    <button onClick={openModal} className="button" type="button" style={{backgroundColor:'#11FFFF'}} >Send Feedback</button>
-                                                    <FeedbackModal isOpen={isModalOpen} onClose={closeModal} applicantName={applicantName} emailName={emailName} company={company} jobTitle={jobTitle}   />
 
+                                                    <button className="button accept" type="button"
+                                                            onClick={handleAcceptClick}
+                                                            disabled={isAccepted}>
+                                                        {isAccepted ? 'Accepted' : 'Accept'}
+
+                                                    </button>
+                                                    <button onClick={openModal} className="button" type="button"
+                                                            style={{backgroundColor: '#11FFFF'}}>Send Feedback
+                                                    </button>
+                                                    <FeedbackModal isOpen={isModalOpen} onClose={closeModal}
+                                                                   applicantName={applicantName} emailName={emailName}
+                                                                   company={company} jobTitle={jobTitle}/>
 
 
                                                 </div>

@@ -6,6 +6,8 @@ import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 const ContactUs = () => {
+    const [user, setUser] = useState(null);
+    const [error, setError] = useState(null);
     const [formData, setFormData] = useState({
         firstName: "",
         lastName: "",
@@ -13,6 +15,7 @@ const ContactUs = () => {
         subject: "",
         message: "",
     });
+    console.log()
 
     const [messages, setMessages] = useState([]);
 
@@ -56,6 +59,25 @@ const ContactUs = () => {
             alert("Đã xảy ra lỗi khi gửi tin nhắn.");
         }
     };
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                // Lấy token từ localStorage hoặc context (nếu có)
+                const token = localStorage.getItem('token');
+                const response = await axios.get('http://localhost:3001/current', {
+                    headers: {
+                        Authorization: token // Đính kèm token vào header
+                    }
+                });
+
+                setUser(response.data); // Lưu thông tin người dùng vào state
+                console.log(response.data);
+            } catch (err) {
+                setError(err.response ? err.response.data.message : 'Lỗi kết nối');
+            }
+        };
+        fetchUserData();
+    }, []); //
     return (
         <>
             <header className="site-navbar mt-3">
@@ -69,23 +91,43 @@ const ContactUs = () => {
                             <ul className="site-menu js-clone-nav d-none d-xl-block ml-0 pl-0">
                                 <li><a href="/Job-BoardMain" className="nav-link active">Home</a></li>
                                 <li><a href="/about-page">About</a></li>
-                                <li><a href="/Post-Job">Post job</a></li>
-                                <li><Link to="/list-job"><span>AI Filtering</span></Link></li>
+                                <li className="has-children">
+                                    {user?.userType !== 'user' && (
+                                        <a href="/Post-Job">Post job</a>
+                                    )}
+                                </li>
+                                {user?.userType !== 'user' && (
+                                    <Link to="/list-job">
+                                        <span>AI Filtering</span>
+                                    </Link>
+                                )}
                                 <li><a href="/contact-us">Contact</a></li>
                             </ul>
                         </nav>
 
                         <div className="right-cta-menu text-right d-flex align-items-center col-6">
                             <div className="ml-auto">
-                                <Link to="/Post-Job"
-                                      className="btn btn-outline-white border-width-2 d-none d-lg-inline-block">
-                                    <span className="mr-2 icon-add">Post a Job</span>
-                                </Link>
-                                <Link to="/Job-Board"
-                                      className="btn btn-primary border-width-2 d-none d-lg-inline-block">
+                                {user?.userType !== 'user' && (
+                                    <Link
+                                        to="/Post-Job"
+                                        className="btn btn-outline-white border-width-2 d-none d-lg-inline-block"
+                                    >
+                                        <span className="mr-2 icon-add">Post a Job</span>
+                                    </Link>
+                                )}
+                                <Link
+                                    to="/Job-Board"
+                                    className="btn btn-primary border-width-2 d-none d-lg-inline-block"
+                                >
                                     <span className="mr-2 icon-lock_outline">Logout</span>
                                 </Link>
                             </div>
+                            <a
+                                href="#"
+                                className="site-menu-toggle js-menu-toggle d-inline-block d-xl-none mt-lg-2 ml-3"
+                            >
+                                <span className="icon-menu h3 m-0 p-0 mt-2"></span>
+                            </a>
                         </div>
                     </div>
                 </div>

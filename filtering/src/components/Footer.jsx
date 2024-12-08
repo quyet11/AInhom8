@@ -41,7 +41,7 @@ const Footer = () => {
                     <div className="col-6 col-md-3 mb-4 mb-md-0">
                         <h3>Contact Us</h3>
                         <div className="footer-social">
-                            <a href="#"><span className="icon-facebook"></span></a>
+                            <a href="https://www.facebook.com/profile.php?id=61570183013854"><span className="icon-facebook"></span></a>
                             <a href="#"><span className="icon-twitter"></span></a>
                             <a href="#"><span className="icon-instagram"></span></a>
                             <a href="#"><span className="icon-linkedin"></span></a>

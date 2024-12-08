@@ -15,6 +15,7 @@ const Signup1 = () => {
     const [rePassword, setRePassword] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();  // Khởi tạo useNavigate
+    const [usertype, setUsertype] = useState('user');
     const handleSignUpSubmit = async (e) => {
         e.preventDefault();
 
@@ -28,7 +29,8 @@ const Signup1 = () => {
         try {
             const response = await axios.post('http://localhost:3001/signup', {
                 email,
-                password
+                password,
+                usertype
             });
             console.log('Đăng ký thành công:', response.data);
             alert('Đăng ký thành công');
@@ -152,24 +154,38 @@ const Signup1 = () => {
                                         </div>
                                     </div>
                                     <div className="row form-group mb-4">
+                                        <div className="col-md-12">
+                                            <label htmlFor="usertype">User Type</label>
+                                            <select
+                                                id="usertype"
+                                                className="form-control"
+                                                value={usertype}
+                                                onChange={(e) => setUsertype(e.target.value)}
+                                            >
+                                                <option value="user">Applicant</option>
+                                                <option value="manager">Recruiter</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div className="row form-group mb-4">
                                         <div className="col-md-12 mb-3 mb-md-0">
                                             <label className="text-black" htmlFor="rePassword">Re-Type Password</label>
                                             <input required
-                                                type="password"
-                                                id="rePassword"
-                                                className="form-control"
-                                                placeholder="Re-type Password"
-                                                value={rePassword}
-                                                onChange={(e) => setRePassword(e.target.value)}
+                                                   type="password"
+                                                   id="rePassword"
+                                                   className="form-control"
+                                                   placeholder="Re-type Password"
+                                                   value={rePassword}
+                                                   onChange={(e) => setRePassword(e.target.value)}
                                             />
                                         </div>
                                     </div>
                                     <div className="row form-group">
                                         <div className="col-md-12">
                                             <input required
-                                                type="submit"
-                                                value="Sign Up"
-                                                className="btn px-4 btn-primary text-white"
+                                                   type="submit"
+                                                   value="Sign Up"
+                                                   className="btn px-4 btn-primary text-white"
                                             />
                                         </div>
                                     </div>

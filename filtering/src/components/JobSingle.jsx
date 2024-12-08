@@ -1,10 +1,12 @@
 import ApplicationForm from './ApplicationForm';
 import React, { useState, useEffect } from "react";
+
 import '../styles/jobboard.css';
 import Helmet from "react-helmet";  // Nhập file CSS chính
 import '../styles/animate.min.css'
 import '../styles/custom-bs.css'
 import '../styles/jquery.fancybox.min.css'
+import axios from 'axios';
 import '../styles/bootstrap-select.min.css'
 import '../styles/owl.carousel.min.css'
 import 'icomoon/style.css';
@@ -15,15 +17,17 @@ import $ from 'jquery';
 import {Link} from "react-router-dom";
 import { useParams,useNavigate } from 'react-router-dom';
 import Footer from "./Footer";
-
-function JobSingle() {
+import { format } from 'date-fns';
+function JobSingle()
+{
+    const [user, setUser] = useState(null);
+    const [error, setError] = useState(null);
     const { jobId } = useParams();
     const [jobDetails, setJobDetails] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
-
+    const navigate = useNavigate();
     const openModal = () => setIsModalOpen(true);
     const closeModal = () => setIsModalOpen(false);
-
 
     useEffect(() => {
         const fetchJobDetails = async () => {
@@ -42,6 +46,40 @@ function JobSingle() {
 
         fetchJobDetails();
     }, [jobId]);
+    useEffect(() => {
+        const fetchUserData = async () => {
+            try {
+                // Lấy token từ localStorage hoặc context (nếu có)
+                const token = localStorage.getItem('token');
+                const response = await axios.get('http://localhost:3001/current', {
+                    headers: {
+                        Authorization: token // Đính kèm token vào header
+                    }
+                });
+
+                setUser(response.data); // Lưu thông tin người dùng vào state
+                console.log(response.data);
+                console.log(user)
+            } catch (err) {
+                setError(err.response ? err.response.data.message : 'Lỗi kết nối');
+            }
+        };
+        fetchUserData();
+    }, []); //
+
+    console.log(user)
+    const handleDelete = async () => {
+        try {
+            const response = await axios.delete(`http://localhost:3001/job_postings/${jobId}`);
+            if (response.status === 200) {
+                alert('Job deleted successfully!');
+                navigate('/Job-BoardMain'); // Redirect to Job-BoardMain
+            }
+        } catch (error) {
+            console.error('Error deleting job:', error);
+            alert('Failed to delete job!');
+        }
+    };
 
     return (
         <div>
@@ -57,40 +95,42 @@ function JobSingle() {
                         <nav className="mx-auto site-navigation">
                             <ul className="site-menu js-clone-nav d-none d-xl-block ml-0 pl-0">
                                 <li><a href="/Job-BoardMain" className="nav-link active">Home</a></li>
-                                <li><a href="about.html">About</a></li>
+                                <li><a href="/about-page">About</a></li>
                                 <li className="has-children">
-                                    <a href="/Post-Job">Post job</a>
-
+                                    {user?.userType !== 'user' && (
+                                        <a href="/Post-Job">Post job</a>
+                                    )}
                                 </li>
-
-
-                                <Link  to="/list-job">
-                                    <span >AI Filtering</span>
-                                </Link>
-                                <li><a href="contact.html">Contact</a></li>
-                                {/*<li className="d-lg-none"><a href="post-job.html"><span className="mr-2">+</span> Post a*/}
-                                {/*    Job</a></li>*/}
-                                {/*<li className="d-lg-none"><a href="login.html">Log In</a></li>*/}
+                                {user?.userType !== 'user' && (
+                                    <Link to="/list-job">
+                                        <span>AI Filtering</span>
+                                    </Link>
+                                )}
+                                <li><a href="/contact-us">Contact</a></li>
                             </ul>
                         </nav>
 
                         <div className="right-cta-menu text-right d-flex align-items-center col-6">
                             <div className="ml-auto">
-
-                                <Link to="/Post-Job"
-                                      className="btn btn-outline-white border-width-2 d-none d-lg-inline-block">
-
-                                    <span className="mr-2 icon-add">Post a Job</span>
-                                </Link>
-
-                                <Link to="/Job-Board"
-                                      className="btn btn-primary border-width-2 d-none d-lg-inline-block">
-
+                                {user?.userType !== 'user' && (
+                                    <Link
+                                        to="/Post-Job"
+                                        className="btn btn-outline-white border-width-2 d-none d-lg-inline-block"
+                                    >
+                                        <span className="mr-2 icon-add">Post a Job</span>
+                                    </Link>
+                                )}
+                                <Link
+                                    to="/Job-Board"
+                                    className="btn btn-primary border-width-2 d-none d-lg-inline-block"
+                                >
                                     <span className="mr-2 icon-lock_outline">Logout</span>
                                 </Link>
                             </div>
-                            <a href="#"
-                               className="site-menu-toggle js-menu-toggle d-inline-block d-xl-none mt-lg-2 ml-3">
+                            <a
+                                href="#"
+                                className="site-menu-toggle js-menu-toggle d-inline-block d-xl-none mt-lg-2 ml-3"
+                            >
                                 <span className="icon-menu h3 m-0 p-0 mt-2"></span>
                             </a>
                         </div>
@@ -147,11 +187,39 @@ function JobSingle() {
                         <div className="col-lg-4">
                             <div className="row">
                                 <div className="col-6">
+                                    {/* {user.userType === ''
+                                    ? <button onClick={openModal} className="btn btn-block btn-primary btn-md">Apply for Job
+                                        </button>
+                                    :<button onClick={openModal} className="btn btn-block btn-primary btn-md">Edit Job
+                                        </button>
+                                } */}
+                                    {user ? (
+                                        user.userType === 'user'
+                                            ? <button onClick={openModal} className="btn btn-block btn-primary btn-md"> Apply for Job
+                                            </button>
+                                            : <button  onClick={handleDelete} style={{
+                                                backgroundColor: "red",
+                                                color: "white",
+                                                border: "none",
+                                                padding: "12px 24px",
+                                                fontSize: "16px",
+                                                borderRadius: "8px",
+                                                cursor: "pointer",
+                                                boxShadow: "0 4px 8px rgba(0, 0, 0, 0.1)",
+                                                transition: "all 0.3s ease",
+                                                width: "100%",  // To make the button take full width
+                                            }}
+                                                       className="btn btn-block btn-primary btn-md"
+                                                       onMouseEnter={(e) => e.target.style.backgroundColor = "darkred"}  // Darken on hover
+                                                       onMouseLeave={(e) => e.target.style.backgroundColor = "red"}  // Reset on leave
+                                                     > Delete
+                                            </button>
 
-
-                                <button onClick={openModal} className="btn btn-block btn-primary btn-md">Apply for
-                                        Job
-                                    </button>
+                                    ) : (
+                                        <p className='display none'></p>
+                                        )}
+                                {/*     <button onClick={openModal} className="btn btn-block btn-primary btn-md">Edit Job*/}
+                                {/*</button> */}
                                     <ApplicationForm isOpen={isModalOpen} onClose={closeModal}/>
                                 </div>
                             </div>
@@ -169,7 +237,7 @@ function JobSingle() {
                                     <div dangerouslySetInnerHTML={{__html: jobDetails.job_description}}/>
                                 ) : (
                                     <p>No job description provided.</p>
-                                    )}
+                                )}
                             </div>
 
                             {/* Requirement Skills */}
@@ -186,17 +254,7 @@ function JobSingle() {
                             </div>
 
                             {/* Apply Now Button */}
-                            <div className="row mb-5">
-                                <div className="col-6">
-                                    <a
-                                        href="#apply"
-                                        className="btn btn-block btn-primary btn-md"
-                                        aria-label="Apply for this job"
-                                    >
-                                        Apply Now
-                                    </a>
-                                </div>
-                            </div>
+
                         </div>
 
                         <div className="col-lg-4">
@@ -206,7 +264,9 @@ function JobSingle() {
                                 <ul className="list-unstyled pl-3 mb-0">
                                     <li className="mb-2">
                                         <strong className="text-black">Published on:</strong>{' '}
-                                        {jobDetails?.posted_date || 'Not specified'}
+                                        {jobDetails?.posted_date
+                                            ? format(new Date(jobDetails.posted_date), 'MMMM d, yyyy h:mm a')
+                                            : 'Not specified'}
                                     </li>
                                     <li className="mb-2">
                                         <strong className="text-black">Employment Status:</strong>{' '}

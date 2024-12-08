@@ -1,19 +1,16 @@
 import React, { useState } from "react";
 import axios from "axios";
 
-const ChatBox = () => {
-    // State for chat history and question
+const CVChatBot = () => {
     const [chatHistory, setChatHistory] = useState([]);
     const [question, setQuestion] = useState("");
-
-    // State for file upload
     const [cvFile, setCvFile] = useState(null);
     const [isUploading, setIsUploading] = useState(false);
 
-    // Handle CV upload
+    // Xử lý tải lên CV
     const handleUploadCV = async () => {
         if (!cvFile) {
-            alert("Please select a CV file!");
+            alert("Vui lòng chọn file CV!");
             return;
         }
 
@@ -27,16 +24,16 @@ const ChatBox = () => {
                 headers: { "Content-Type": "multipart/form-data" },
             });
 
-            const botResponse = response.data.evaluation_result || "Unable to analyze CV.";
+            const botResponse = response.data.evaluation_result || "Không thể phân tích CV.";
             setChatHistory([...chatHistory, { role: "bot", content: botResponse }]);
         } catch (error) {
-            console.error("Error analyzing CV:", error.message);
+            console.error("Lỗi khi phân tích CV:", error.message);
         } finally {
             setIsUploading(false);
         }
     };
 
-    // Handle question submission
+    // Xử lý hỏi đáp
     const handleAskQuestion = async () => {
         if (!question.trim()) return;
 
@@ -49,54 +46,53 @@ const ChatBox = () => {
                 { headers: { "Content-Type": "application/json" } }
             );
 
-            const botResponse = response.data.answer || "I don't have an answer.";
+            const botResponse = response.data.answer || "Tôi không có câu trả lời.";
             setChatHistory([...updatedChat, { role: "bot", content: botResponse }]);
             setQuestion("");
         } catch (error) {
-            console.error("Error in Q&A:", error.message);
+            console.error("Lỗi khi hỏi đáp:", error.message);
         }
     };
 
     return (
-        <div style={{ maxWidth: "600px", margin: "auto", padding: "20px", border: "1px solid #ccc", borderRadius: "10px" }}>
-            <h2>ChatBot</h2>
+        <div style={{ maxWidth: "600px", margin: "auto" }}>
+            <h2>CV Chatbot</h2>
 
-            {/* CV Upload Section */}
-            <div style={{ marginBottom: "20px" }}>
+            {/* Khu vực tải CV */}
+            <div>
                 <input
                     type="file"
                     onChange={(e) => setCvFile(e.target.files[0])}
                     accept=".pdf"
-                    style={{ marginRight: "10px" }}
                 />
                 <button onClick={handleUploadCV} disabled={isUploading}>
-                    {isUploading ? "Analyzing..." : "Upload CV"}
+                    {isUploading ? "Đang phân tích..." : "Tải CV lên"}
                 </button>
             </div>
 
-            {/* Chat Section */}
-            <div style={{ border: "1px solid #ccc", padding: "10px", height: "300px", overflowY: "auto", marginBottom: "20px" }}>
+            {/* Khu vực chat */}
+            <div style={{ border: "1px solid #ccc", padding: "10px", marginTop: "20px", height: "400px", overflowY: "auto" }}>
                 {chatHistory.map((chat, index) => (
                     <div key={index} style={{ marginBottom: "10px" }}>
-                        <strong>{chat.role === "user" ? "You" : "Bot"}:</strong>
+                        <strong>{chat.role === "user" ? "Bạn" : "Bot"}:</strong>
                         <p>{chat.content}</p>
                     </div>
                 ))}
             </div>
 
-            {/* Question Input */}
-            <div style={{ display: "flex", alignItems: "center" }}>
+            {/* Input gửi câu hỏi */}
+            <div>
                 <input
                     type="text"
                     value={question}
                     onChange={(e) => setQuestion(e.target.value)}
-                    placeholder="Ask a question..."
-                    style={{ flex: 1, marginRight: "10px", padding: "10px" }}
+                    placeholder="Nhập câu hỏi của bạn..."
+                    style={{ width: "80%" }}
                 />
-                <button onClick={handleAskQuestion}>Send</button>
+                <button onClick={handleAskQuestion}>Gửi</button>
             </div>
         </div>
     );
 };
 
-export default ChatBox;
+export default CVChatBot;
